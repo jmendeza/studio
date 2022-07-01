@@ -159,6 +159,8 @@ CREATE TABLE IF NOT EXISTS `audit_parameters` (
   `target_subtype`    VARCHAR(32)   NULL,
   `target_value`      VARCHAR(1024)  NOT NULL,
   PRIMARY KEY (`id`),
+    FOREIGN KEY `audit_parameters_ix_audit_id` (`audit_id`) REFERENCES `audit` (`id`)
+       ON DELETE CASCADE,,
   KEY `audit_parameters_audit_id_idx` (`audit_id`),
   KEY `audit_parameters_target_id_idx` (`target_id`),
   KEY `audit_parameters_target_value_idx` (`target_value`)
