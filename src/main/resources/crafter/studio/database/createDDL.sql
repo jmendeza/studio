@@ -124,7 +124,7 @@ CREATE TABLE _meta (
   PRIMARY KEY (`version`)
 ) ;
 
-INSERT INTO _meta (version, studio_id) VALUES ('4.0.1.8', UUID()) ;
+INSERT INTO _meta (version, studio_id) VALUES ('4.0.1.9', UUID()) ;
 
 CREATE TABLE IF NOT EXISTS `audit` (
   `id`                        BIGINT(20)    NOT NULL AUTO_INCREMENT,
@@ -582,3 +582,34 @@ VALUES ('studio_root', 'Studio Root', 'Studio Root for global permissions', 1, '
 
 INSERT IGNORE INTO group_user (user_id, group_id) VALUES (1, 1) ;
 
+
+CREATE TABLE IF NOT EXISTS `recycle_bin` (
+    `id`                BIGINT          NOT NULL AUTO_INCREMENT,
+    `site_id`           BIGINT          NOT NULL,
+    `manifest_path`     VARCHAR(96)     NOT NULL,
+    `timestamp`         TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `user_id`           BIGINT          NOT NULL,
+    `comment`           VARCHAR(1024)   NOT NULL,
+    `is_published`      VARCHAR(16)     NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE uq_recycle_bin_site_manifest_path (`site_id`, `manifest_path`),
+    FOREIGN KEY recycle_bin_id_user_id (`user_id`) REFERENCES `user` (`id`)
+)
+    ENGINE = InnoDB
+    DEFAULT CHARSET = utf8
+    ROW_FORMAT = DYNAMIC ;
+
+CREATE TABLE IF NOT EXISTS `recycle_bin_items`
+(
+   `recycle_bin_id`     BIGINT          NOT NULL,
+   `item_id`            BIGINT          NOT NULL,
+   `item_label`         VARCHAR(256)    NOT NULL,
+   PRIMARY KEY (`recycle_bin_id`, `item_id`),
+   FOREIGN KEY recycle_bin_items_recycle_bin_id (`recycle_bin_id`) REFERENCES `recycle_bin` (`id`)
+        ON DELETE CASCADE,
+   FOREIGN KEY recycle_bin_items_item_id (`item_id`) REFERENCES `item` (`id`)
+        ON DELETE RESTRICT
+)
+    ENGINE = InnoDB
+    DEFAULT CHARSET = utf8
+    ROW_FORMAT = DYNAMIC ;
