@@ -29,6 +29,7 @@ import org.craftercms.studio.api.v2.dal.QuickCreateItem;
 import org.craftercms.studio.api.v2.exception.content.ContentAlreadyUnlockedException;
 import org.craftercms.studio.api.v2.service.clipboard.ClipboardService;
 import org.craftercms.studio.api.v2.service.content.ContentService;
+import org.craftercms.studio.api.v2.service.recyclebin.RecycleBinService;
 import org.craftercms.studio.api.v2.service.workflow.WorkflowService;
 import org.craftercms.studio.model.rest.ResponseBody;
 import org.craftercms.studio.model.rest.Result;
@@ -62,21 +63,20 @@ public class ContentController {
 
     private final ContentService contentService;
     private final SiteService siteService;
-    private final WorkflowService workflowService;
 
     //TODO: Migrate logic to new content service
     private final ClipboardService clipboardService;
 
+    private final RecycleBinService recycleBinService;
 
-    @ConstructorProperties({"contentService", "siteService", "clipboardService",
-            "workflowService"})
-    public ContentController(ContentService contentService, SiteService siteService,
-                             ClipboardService clipboardService,
-                             WorkflowService workflowService) {
+
+    @ConstructorProperties({"contentService", "siteService", "clipboardService", "recycleBinService"})
+    public ContentController(final ContentService contentService, final SiteService siteService,
+                             final ClipboardService clipboardService, final RecycleBinService recycleBinService) {
         this.contentService = contentService;
         this.siteService = siteService;
         this.clipboardService = clipboardService;
-        this.workflowService = workflowService;
+        this.recycleBinService = recycleBinService;
     }
 
     @GetMapping(LIST_QUICK_CREATE_CONTENT)
@@ -101,9 +101,9 @@ public class ContentController {
         List<SandboxItem> childSandboxItems = contentService.getChildSandboxItems(request.getSiteId(), request.getPaths());
         List<SandboxItem> dependentSandboxItems = contentService.getDependentSandboxItems(request.getSiteId(), request.getPaths());
         ResponseBody responseBody = new ResponseBody();
-        ResultOne<Map<String, List<?>>> result = new ResultOne<>();
+        ResultOne<Map<String, List<SandboxItem>>> result = new ResultOne<>();
         result.setResponse(OK);
-        Map<String, List<?>> items = new HashMap<>();
+        Map<String, List<SandboxItem>> items = new HashMap<>();
         items.put(RESULT_KEY_CHILD_ITEMS, childSandboxItems);
         items.put(RESULT_KEY_DEPENDENT_ITEMS, dependentSandboxItems);
         result.setEntity(RESULT_KEY_ITEMS, items);
@@ -114,11 +114,12 @@ public class ContentController {
     @PostMapping(value = DELETE, consumes = APPLICATION_JSON_VALUE)
     public ResponseBody delete(@RequestBody @Validated DeleteRequestBody deleteRequestBody)
             throws UserNotFoundException, ServiceLayerException, DeploymentException {
-        workflowService.delete(deleteRequestBody.getSiteId(), deleteRequestBody.getItems(),
-                deleteRequestBody.getOptionalDependencies(), deleteRequestBody.getComment());
+        long packageId = recycleBinService.recycle(deleteRequestBody.getSiteId(), deleteRequestBody.getItems(),
+                deleteRequestBody.getComment());
 
         var responseBody = new ResponseBody();
-        var result = new Result();
+        ResultOne<Long> result = new ResultOne<>();
+        result.setEntity(RESULT_KEY_PACKAGE_ID, packageId);
         result.setResponse(OK);
         responseBody.setResult(result);
         return responseBody;

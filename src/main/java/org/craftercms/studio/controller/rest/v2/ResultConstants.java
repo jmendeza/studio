@@ -100,6 +100,7 @@ public final class ResultConstants {
     public static final String RESULT_KEY_PUBLISHING_PACKAGE_ITEMS = "publishingPackageItems";
     public static final String RESULT_KEY_UNPUBLISHED_ITEMS = "unpublishedItems";
     public static final String RESULT_KEY_PUBLISHING_STATS = "publishingStats";
+    public static final String RESULT_KEY_PACKAGE_ID = "packageId";
 
     /** Exception Handler */
     public static final String RESULT_KEY_PERSON = "person";

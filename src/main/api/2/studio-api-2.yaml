@@ -4079,11 +4079,6 @@ paths:
                   description: path(s) of content item(s)
                   items:
                     type: string
-                optionalDependencies:
-                  type: array
-                  description: optional (soft) dependencies
-                  items:
-                    type: string
                 comment:
                   type: string
                   description: deletion comment by the user performing the delete

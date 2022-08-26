@@ -318,6 +318,29 @@ public class BlobAwareContentRepository implements ContentRepository,
     }
 
     @Override
+    public String moveContent(String site, List<String> paths, String toPath) throws ServiceLayerException {
+        logger.debug("Move content in site '{}' from '{}' to '{}'", site, paths, toPath);
+        try {
+            for(String path : paths){
+                StudioBlobStore store = getBlobStore(site, path, toPath);
+                if (store != null) {
+                    store.moveContent(site, path, toPath);
+                }
+            }
+            return localRepositoryV2.moveContent(site, paths, toPath);
+        } catch (BlobStoreConfigurationMissingException e) {
+            logger.debug("No blob store configuration found for site '{}', " +
+                    "will move from '{}' to '{}' in the local repository", site, paths, toPath);
+            return localRepositoryV2.moveContent(site, paths, toPath);
+        } catch(ServiceLayerException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Failed to move content in site '{}' from '{}' to '{}'", site, paths, toPath, e);
+            return null;
+        }
+    }
+
+    @Override
     public String copyContent(String site, String fromPath, String toPath) {
         logger.debug("Copy content in site '{}' from '{}' to '{}'", site, fromPath, toPath);
         try {
@@ -814,5 +837,4 @@ public class BlobAwareContentRepository implements ContentRepository,
     public void populateGitLog(String siteId) throws GitAPIException, IOException {
         localRepositoryV2.populateGitLog(siteId);
     }
-
 }

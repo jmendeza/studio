@@ -80,6 +80,8 @@ public class DmConstants {
 	public static final String ROOT_PATTERN_DOCUMENTS = "/site/documents";
     public static final String ROOT_PATTERN_SYSTEM_COMPONENTS = "/site/system/page-components";
 
+	public static final String ROOT_PATTERN_RECYCLE_BIN = "/recycle-bin/";
+
     public static final String DM_SCHEDULE_SUBMISSION_FLOW = "schedule_submission";
 
     public static final String CONTENT_LIFECYCLE_OPERATION ="contentLifecycleOperation" ;

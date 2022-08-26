@@ -26,7 +26,6 @@ public class DeleteRequestBody {
     private String siteId;
     @NotEmpty
     private List<@Valid @NotEmpty String> items;
-    private List<String> optionalDependencies;
     private String comment;
 
     public String getSiteId() {
@@ -43,14 +42,6 @@ public class DeleteRequestBody {
 
     public void setItems(List<String> items) {
         this.items = items;
-    }
-
-    public List<String> getOptionalDependencies() {
-        return optionalDependencies;
-    }
-
-    public void setOptionalDependencies(List<String> optionalDependencies) {
-        this.optionalDependencies = optionalDependencies;
     }
 
     public String getComment() {

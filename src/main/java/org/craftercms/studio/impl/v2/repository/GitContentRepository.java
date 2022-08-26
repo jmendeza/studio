@@ -2051,6 +2051,40 @@ public class GitContentRepository implements ContentRepository {
         }
     }
 
+    @Override
+    public String moveContent(final String site, final List<String> paths, final String destinationRoot) throws ServiceLayerException {
+        String commitId = null;
+        String gitLockKey = helper.getSandboxRepoLockKey(site, true);
+        generalLockService.lock(gitLockKey);
+        try {
+            Repository repo = helper.getRepository(site, StringUtils.isEmpty(site) ? GLOBAL : SANDBOX);
+            try (Git git = new Git(repo)) {
+                String gitToPath = helper.getGitPath(destinationRoot);
+                Path destinationPath = Paths.get(repo.getDirectory().getParent(), gitToPath);
+                List<String> pathsToCommit = new ArrayList<>();
+                pathsToCommit.add(gitToPath);
+                for (String path : paths) {
+                    String gitFromPath = helper.getGitPath(path);
+                    Path sourcePath = Paths.get(repo.getDirectory().getParent(), gitFromPath);
+
+                    FileUtils.moveToDirectory(sourcePath.toFile(), destinationPath.toFile(), true);
+                    pathsToCommit.add(gitFromPath);
+                }
+                if (helper.addFiles(repo, site, pathsToCommit.toArray(new String[0]))) {
+                    PersonIdent user = helper.getCurrentUserIdent();
+                    commitId = helper.commitFiles(repo, site, "The comment", user, pathsToCommit.toArray(new String[0]));
+                } else {
+                    // Throw some exception
+                }
+            } catch (Exception e) {
+                throw new ServiceLayerException(e);
+            }
+        } finally {
+            generalLockService.unlock(gitLockKey);
+        }
+        return commitId;
+    }
+
     public void setHelper(GitRepositoryHelper helper) {
         this.helper = helper;
     }

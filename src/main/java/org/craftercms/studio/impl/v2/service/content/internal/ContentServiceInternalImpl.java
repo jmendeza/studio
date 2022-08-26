@@ -17,7 +17,9 @@
 package org.craftercms.studio.impl.v2.service.content.internal;
 
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.craftercms.studio.api.v1.constant.DmConstants;
 import org.craftercms.studio.api.v1.dal.SiteFeed;
 import org.craftercms.studio.api.v1.dal.SiteFeedMapper;
 import org.craftercms.studio.api.v1.exception.ServiceLayerException;
@@ -39,14 +41,11 @@ import org.craftercms.studio.api.v2.service.content.internal.ContentServiceInter
 import org.craftercms.studio.model.rest.content.GetChildrenResult;
 import org.springframework.core.io.Resource;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
+import static java.util.Collections.*;
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
+import static org.craftercms.studio.api.v1.constant.DmConstants.ROOT_PATTERN_RECYCLE_BIN;
 import static org.craftercms.studio.api.v1.constant.StudioConstants.CONTENT_TYPE_FOLDER;
 import static org.craftercms.studio.api.v1.constant.StudioConstants.FILE_SEPARATOR;
 import static org.craftercms.studio.api.v1.constant.StudioConstants.INDEX_FILE;
@@ -175,6 +174,9 @@ public class ContentServiceInternalImpl implements ContentServiceInternal {
     @Override
     public List<SandboxItem> getSandboxItemsByPath(String siteId, List<String> paths, boolean preferContent)
             throws ServiceLayerException, UserNotFoundException {
+        if (isEmpty(paths)) {
+            return emptyList();
+        }
         Map<String, String> params = new HashMap<>();
         params.put(SITE_ID, siteId);
         SiteFeed siteFeed = siteFeedMapper.getSite(params);

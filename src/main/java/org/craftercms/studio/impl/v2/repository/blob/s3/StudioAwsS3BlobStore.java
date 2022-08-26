@@ -21,6 +21,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.craftercms.commons.file.blob.Blob;
 import org.craftercms.commons.file.blob.exception.BlobStoreException;
 import org.craftercms.commons.file.blob.impl.s3.AwsS3BlobStore;
+import org.craftercms.studio.api.v1.exception.ServiceLayerException;
 import org.craftercms.studio.api.v1.service.configuration.ServicesConfig;
 import org.craftercms.studio.api.v1.to.DeploymentItemTO;
 import org.craftercms.studio.api.v2.repository.RepositoryChanges;
@@ -283,6 +284,11 @@ public class StudioAwsS3BlobStore extends AwsS3BlobStore implements StudioBlobSt
     }
 
     @Override
+    public String moveContent(String site, List<String> paths, String destinationRoot) throws ServiceLayerException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public String copyContent(String site, String fromPath, String toPath) {
         Mapping previewMapping = getMapping(publishingTargetResolver.getPublishingTarget());
         logger.debug("Copy content in site '{}' from '{}' to '{}'",
@@ -477,5 +483,4 @@ public class StudioAwsS3BlobStore extends AwsS3BlobStore implements StudioBlobSt
         // this method should not be called
         throw new UnsupportedOperationException();
     }
-
 }

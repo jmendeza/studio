@@ -87,6 +87,15 @@
         <property name="retryingDatabaseOperationFacade" ref="studio.retryingDatabaseOperationFacade" />
     </bean>
 
+    <bean id="recycleBinService" class="org.craftercms.studio.impl.v2.service.recyclebin.RecycleBinServiceImpl">
+        <constructor-arg name="recycleBinServiceInternal" ref="recycleBinServiceInternal"/>
+    </bean>
+
+    <bean id="recycleBinServiceInternal"
+          class="org.craftercms.studio.impl.v2.service.recyclebin.internal.RecycleBinServiceInternalImpl">
+        <constructor-arg name="contentRepository" ref="contentRepository" />
+    </bean>
+
     <!-- all of these beans below need to move off contentRepository and on to content service.  Repository is a very NARROW interface -->
 
 
