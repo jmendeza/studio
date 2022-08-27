@@ -318,24 +318,24 @@ public class BlobAwareContentRepository implements ContentRepository,
     }
 
     @Override
-    public String moveContent(String site, List<String> paths, String toPath) throws ServiceLayerException {
-        logger.debug("Move content in site '{}' from '{}' to '{}'", site, paths, toPath);
+    public String recycleItems(String site, List<String> paths, String recycleDirectory) throws ServiceLayerException {
+        logger.debug("Move content in site '{}' from '{}' to '{}'", site, paths, recycleDirectory);
         try {
             for(String path : paths){
-                StudioBlobStore store = getBlobStore(site, path, toPath);
+                StudioBlobStore store = getBlobStore(site, path, recycleDirectory);
                 if (store != null) {
-                    store.moveContent(site, path, toPath);
+                    store.moveContent(site, path, recycleDirectory);
                 }
             }
-            return localRepositoryV2.moveContent(site, paths, toPath);
+            return localRepositoryV2.recycleItems(site, paths, recycleDirectory);
         } catch (BlobStoreConfigurationMissingException e) {
             logger.debug("No blob store configuration found for site '{}', " +
-                    "will move from '{}' to '{}' in the local repository", site, paths, toPath);
-            return localRepositoryV2.moveContent(site, paths, toPath);
+                    "will move from '{}' to '{}' in the local repository", site, paths, recycleDirectory);
+            return localRepositoryV2.recycleItems(site, paths, recycleDirectory);
         } catch(ServiceLayerException e) {
             throw e;
         } catch (Exception e) {
-            logger.error("Failed to move content in site '{}' from '{}' to '{}'", site, paths, toPath, e);
+            logger.error("Failed to move content in site '{}' from '{}' to '{}'", site, paths, recycleDirectory, e);
             return null;
         }
     }

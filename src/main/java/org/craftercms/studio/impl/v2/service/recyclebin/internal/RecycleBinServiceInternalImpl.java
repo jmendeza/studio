@@ -47,7 +47,7 @@ public class RecycleBinServiceInternalImpl implements RecycleBinService {
         String recycleBinPath = ROOT_PATTERN_RECYCLE_BIN + deletePackagePath;
         // TODO: Process all XMLs to update timestamps
         // TODO: Create manifest.xml
-        String commitID = this.contentRepository.moveContent(siteId, paths, recycleBinPath);
+        String commitID = this.contentRepository.recycleItems(siteId, paths, recycleBinPath);
         // TODO: populate recycle_bin tables
         // TODO: update item states and commitID
         return 1234;

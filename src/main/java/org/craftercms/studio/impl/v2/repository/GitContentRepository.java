@@ -98,7 +98,9 @@ import static java.lang.String.format;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.time.ZoneOffset.UTC;
 import static java.util.stream.Collectors.toSet;
+import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.collections4.CollectionUtils.union;
+import static org.apache.commons.lang.ArrayUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.craftercms.studio.api.v1.constant.GitRepositories.*;
 import static org.craftercms.studio.api.v1.constant.StudioConstants.*;
@@ -2051,34 +2053,56 @@ public class GitContentRepository implements ContentRepository {
         }
     }
 
+    private void moveToRecycleBin(Path repoRootPath, File sourceFile, Path packageRoot) throws IOException {
+        File target = packageRoot.resolve(repoRootPath.relativize(sourceFile.toPath().getParent())).toFile();
+        FileUtils.moveToDirectory(sourceFile, target, true);
+    }
+
     @Override
-    public String moveContent(final String site, final List<String> paths, final String destinationRoot) throws ServiceLayerException {
-        String commitId = null;
+    public String recycleItems(final String site, final List<String> paths, final String recycleDirectory)
+            throws ServiceLayerException {
+        String commitId;
         String gitLockKey = helper.getSandboxRepoLockKey(site, true);
         generalLockService.lock(gitLockKey);
         try {
             Repository repo = helper.getRepository(site, StringUtils.isEmpty(site) ? GLOBAL : SANDBOX);
-            try (Git git = new Git(repo)) {
-                String gitToPath = helper.getGitPath(destinationRoot);
-                Path destinationPath = Paths.get(repo.getDirectory().getParent(), gitToPath);
-                List<String> pathsToCommit = new ArrayList<>();
-                pathsToCommit.add(gitToPath);
-                for (String path : paths) {
-                    String gitFromPath = helper.getGitPath(path);
-                    Path sourcePath = Paths.get(repo.getDirectory().getParent(), gitFromPath);
+            Path repoRootPath = repo.getDirectory().getParentFile().toPath();
+            String gitToPath = helper.getGitPath(recycleDirectory);
+            Path packageRoot = repoRootPath.resolve(gitToPath);
+            List<String> pathsToCommit = new ArrayList<>();
+            pathsToCommit.add(gitToPath);
+            for (String path : paths) {
+                String gitPath = helper.getGitPath(path);
+                Path sourcePath = repoRootPath.resolve(gitPath);
+                File sourceFile = sourcePath.toFile();
 
-                    FileUtils.moveToDirectory(sourcePath.toFile(), destinationPath.toFile(), true);
-                    pathsToCommit.add(gitFromPath);
+//                FileUtils.moveToDirectory(sourceFile, packageRoot, true);
+                moveToRecycleBin(repoRootPath, sourceFile, packageRoot);
+                if (sourceFile.getName().endsWith(INDEX_FILE)) {
+                    File pageFolder = sourceFile.getParentFile();
+                    File[] children = Objects.requireNonNullElseGet(pageFolder.listFiles(), () -> new File[0]);
+                    for (File child : children) {
+//                        FileUtils.moveToDirectory(child, packageRoot, true);
+                        moveToRecycleBin(repoRootPath, child, packageRoot);
+                    }
+                    if(pageFolder.isDirectory() && isEmpty(pageFolder.listFiles())){
+                        pageFolder.delete();
+                    }
+                    pathsToCommit.add(repoRootPath.relativize(pageFolder.toPath()).toString());
                 }
-                if (helper.addFiles(repo, site, pathsToCommit.toArray(new String[0]))) {
-                    PersonIdent user = helper.getCurrentUserIdent();
-                    commitId = helper.commitFiles(repo, site, "The comment", user, pathsToCommit.toArray(new String[0]));
-                } else {
-                    // Throw some exception
-                }
-            } catch (Exception e) {
-                throw new ServiceLayerException(e);
+                pathsToCommit.add(gitPath);
             }
+            if (helper.addFiles(repo, site, pathsToCommit.toArray(new String[0]))) {
+                PersonIdent user = helper.getCurrentUserIdent();
+                commitId = helper.commitFiles(repo, site, "The comment", user, pathsToCommit.toArray(new String[0]));
+            } else {
+                // TODO: Throw some more specific exception
+                throw new ServiceLayerException("Unable to add files to commit");
+            }
+        } catch (IOException | UserNotFoundException e) {
+            // TODO: Log error?
+            // TODO: throw a more specific exception
+            throw new ServiceLayerException(e);
         } finally {
             generalLockService.unlock(gitLockKey);
         }

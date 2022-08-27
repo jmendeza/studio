@@ -284,7 +284,8 @@ public class StudioAwsS3BlobStore extends AwsS3BlobStore implements StudioBlobSt
     }
 
     @Override
-    public String moveContent(String site, List<String> paths, String destinationRoot) throws ServiceLayerException {
+    public String recycleItems(String site, List<String> paths, String recycleDirectory) throws ServiceLayerException {
+        // TODO: Implement
         throw new UnsupportedOperationException();
     }
 

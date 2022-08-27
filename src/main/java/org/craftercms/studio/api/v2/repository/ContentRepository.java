@@ -446,5 +446,5 @@ public interface ContentRepository {
      */
     void populateGitLog(String siteId) throws GitAPIException, IOException;
 
-    String moveContent(String site, List<String> paths, String destinationRoot) throws ServiceLayerException;
+    String recycleItems(String site, List<String> paths, String recycleDirectory) throws ServiceLayerException;
 }
