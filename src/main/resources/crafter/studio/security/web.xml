@@ -47,6 +47,7 @@
         <sec:form-login login-page="/login" authentication-failure-url="/login?error=true"/>
         <sec:logout success-handler-ref="logoutSuccessHandler"/>
 
+        <sec:custom-filter ref="sameSiteCookiesFilter" position="LAST"/>
         <sec:custom-filter ref="crafter.secureHeaderWriterFilter" position="HEADERS_FILTER"/>
         <sec:custom-filter ref="studio.loginPageFilter" before="FORM_LOGIN_FILTER"/>
 

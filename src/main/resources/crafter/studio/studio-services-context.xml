@@ -1653,5 +1653,8 @@
         <constructor-arg name="sitesService" ref="sitesService"/>
     </bean>
 
+    <bean id="sameSiteCookiesFilter" class="org.craftercms.studio.http.SameSiteCookiesFilter">
+    </bean>
+
     <import resource="classpath:crafter/studio/studio-security-context.xml"/>
 </beans>
