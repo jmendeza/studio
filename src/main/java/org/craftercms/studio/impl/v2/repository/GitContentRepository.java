@@ -514,10 +514,7 @@ public class GitContentRepository implements ContentRepository {
         long startMark = logger.isDebugEnabled() ? System.currentTimeMillis() : 0;
         List<RepoOperation> toReturn = new ArrayList<>();
 
-        int idx = 0;
         for (DiffEntry diffEntry : diffEntries) {
-            ++idx;
-            long startProcessEntryMark = logger.isDebugEnabled() ? System.currentTimeMillis() : 0;
             // Update the paths to have a preceding separator
             String pathNew = FILE_SEPARATOR + diffEntry.getNewPath();
             String pathOld = FILE_SEPARATOR + diffEntry.getOldPath();
@@ -794,6 +791,7 @@ public class GitContentRepository implements ContentRepository {
                 sandboxBranchName = studioConfiguration.getProperty(REPO_SANDBOX_BRANCH);
             }
 
+            String sandboxLastCommit;
             try (Git git = new Git(repo)) {
                 String inProgressBranchName = environment + IN_PROGRESS_BRANCH_NAME_SUFFIX;
 
@@ -821,6 +819,9 @@ public class GitContentRepository implements ContentRepository {
                             .setRemoteBranchName(sandboxBranchName)
                             .setStrategy(THEIRS);
                     retryingRepositoryOperationFacade.call(pullCommand);
+
+                    sandboxLastCommit = repo.resolve(HEAD).getName();
+                    logger.debug("Publishing from HEAD '{}' in site '{}'", sandboxLastCommit, site);
                 } catch (RefNotFoundException e) {
                     logger.error("Failed to checkout published/master and to pull content from sandbox " +
                             "in site '{}'", site, e);
@@ -829,43 +830,10 @@ public class GitContentRepository implements ContentRepository {
                 }
 
                 // checkout environment branch
-                logger.debug("Checkout publishing target branch '{}' in site '{}'", environment, site);
+                logger.debug("Ensure target branch '{}' exists in site '{}'", environment, site);
+                ensureEnvironmentBranch(site, environment, repo, sandboxBranchName);
+
                 try {
-                    checkoutBranch(git, environment);
-                } catch (RefNotFoundException e) {
-                    logger.info("Unable to find the publishing target branch '{}' in site '{}'. Create a new branch.",
-                            environment, site);
-                    // create new environment branch
-                    // it will start as empty orphan branch
-                    CheckoutCommand checkoutCommand = git.checkout()
-                            .setOrphan(true)
-                            .setForceRefUpdate(true)
-                            .setStartPoint(sandboxBranchName)
-                            .setUpstreamMode(TRACK)
-                            .setName(environment);
-                    retryingRepositoryOperationFacade.call(checkoutCommand);
-
-                    // remove any content to create empty branch
-                    RmCommand rmcmd = git.rm();
-                    File[] toDelete = repo.getWorkTree().listFiles();
-                    if (toDelete != null) {
-                        for (File toDel : toDelete) {
-                            if (!repo.getDirectory().equals(toDel) &&
-                                    !StringUtils.equals(toDel.getName(), DOT_GIT_IGNORE)) {
-                                rmcmd.addFilepattern(toDel.getName());
-                            }
-                        }
-                    }
-                    retryingRepositoryOperationFacade.call(rmcmd);
-                    CommitCommand commitCommand = git.commit()
-                            .setMessage(helper.getCommitMessage(REPO_INITIAL_COMMIT_COMMIT_MESSAGE))
-                            .setAllowEmpty(true);
-                    retryingRepositoryOperationFacade.call(commitCommand);
-                }
-
-                // Create in progress branch
-                try {
-
                     // Create in progress branch
                     logger.debug("Create in-progress branch in site '{}'", site);
                     CheckoutCommand checkoutCommand = git.checkout()
@@ -883,7 +851,6 @@ public class GitContentRepository implements ContentRepository {
                 Set<String> deployedCommits = new HashSet<>();
                 Set<String> deployedPackages = new HashSet<>();
                 logger.debug("Checkout deployed files started for site '{}'", site);
-                AddCommand addCommand = git.add();
                 String currentPackageId = deploymentItems.get(0).getPackageId();
                 // TODO: SJ: Review the following code and refactor for better performance
                 // TODO: The logic should be something like:
@@ -891,6 +858,9 @@ public class GitContentRepository implements ContentRepository {
                 // TODO:   skip this file
                 // TODO: If the commit ID is null, use HEAD
                 // TODO: Publish the file
+
+                CheckoutCommand checkout = git.checkout();
+                checkout.setStartPoint(sandboxLastCommit);
                 for (DeploymentItemTO deploymentItem : deploymentItems) {
                     commitId = deploymentItem.getCommitId();
                     path = helper.getGitPath(deploymentItem.getPath());
@@ -926,9 +896,7 @@ public class GitContentRepository implements ContentRepository {
                     logger.debug("Publish to the temporary branch path '{}' site '{}' commit ID '{}'",
                             path, site, commitId);
 
-                    CheckoutCommand checkout = git.checkout();
-                    checkout.setStartPoint(commitId).addPath(path);
-                    retryingRepositoryOperationFacade.call(checkout);
+                    checkout.addPath(path);
 
                     if (deploymentItem.isMove()) {
                         if (!StringUtils.equals(deploymentItem.getPath(), deploymentItem.getOldPath())) {
@@ -954,7 +922,6 @@ public class GitContentRepository implements ContentRepository {
                         deployedPackages.add(deploymentItem.getPackageId());
                     }
 
-                    addCommand.addFilepattern(path);
                     itemServiceInternal.updateLastPublishedOn(site, deploymentItem.getPath(),
                             DateUtils.getCurrentTime());
 
@@ -966,6 +933,8 @@ public class GitContentRepository implements ContentRepository {
                     }
                 } // end of for loop
 
+                retryingRepositoryOperationFacade.call(checkout);
+
                 // All deployable files are now checked out in the temporary in-progress publishing branch
                 logger.debug("Checkout deployed files completed for site '{}'", site);
 
@@ -974,10 +943,6 @@ public class GitContentRepository implements ContentRepository {
 
                 User user = userServiceInternal.getUserByIdOrUsername(-1, author);
                 PersonIdent authorIdent = helper.getAuthorIdent(user);
-
-                logger.debug("Git add all published items started in site '{}'", site);
-                retryingRepositoryOperationFacade.call(addCommand);
-                logger.debug("Git add all published items completed in site '{}'", site);
 
                 commitMessage = commitMessage.replace("{username}", author);
                 commitMessage =
@@ -1057,6 +1022,31 @@ public class GitContentRepository implements ContentRepository {
         } finally {
             generalLockService.unlock(gitLockKey);
         }
+    }
+
+    /**
+     * Creates environment branch if it does not exist.
+     * This method will create a branch in the given repository.
+     * The starting point of the new branch will be chosen from the following rules:
+     * <ul>
+     *     <li>If the environment is live, the sandbox branch will be used</li>
+     *     <li>If the environment is not live (staging), the live branch will be used if it exists. Otherwise it will use the sandbox branch</li>
+     * </ul>
+     *
+     * @param site              the site id
+     * @param environment       the publishing target
+     * @param repo              git repo
+     * @param sandboxBranchName sandbox repository branch name
+     * @throws IOException if an I/O error occurs while verifying branch existence
+     */
+    private void ensureEnvironmentBranch(String site, String environment, Repository repo, String sandboxBranchName) throws IOException {
+        if (branchExists(repo, environment)) {
+            return;
+        }
+        String liveEnvironment = servicesConfig.getLiveEnvironment(site);
+        boolean liveExists = branchExists(repo, liveEnvironment);
+        String baseBranch = liveExists ? liveEnvironment : sandboxBranchName;
+        createEnvironmentBranch(site, baseBranch, environment);
     }
 
     protected void resetIfNeeded(Repository repo, Git git) throws IOException, GitAPIException {
@@ -1312,6 +1302,11 @@ public class GitContentRepository implements ContentRepository {
         if (!contentExists(site, path)) {
             throw new ContentNotFoundException(path, site, format("Content does not exist at '%s' for site '%s'", path, site));
         }
+    }
+
+    @Override
+    public boolean shallowContentExists(String site, String path) {
+        return Files.exists(helper.buildRepoPath(SANDBOX, site).resolve(helper.getGitPath(path)));
     }
 
     @Override
@@ -1798,7 +1793,10 @@ public class GitContentRepository implements ContentRepository {
                     if (tw != null) {
                         ObjectId id = tw.getObjectId(0);
                         ObjectLoader objectLoader = repo.open(id);
-                        return Optional.of(new GitResource(objectLoader));
+                        if (OBJ_BLOB == objectLoader.getType()) {
+                            return Optional.of(new GitResource(objectLoader));
+                        }
+                        return Optional.empty();
                     }
                 }
             }
@@ -1817,29 +1815,30 @@ public class GitContentRepository implements ContentRepository {
     @Override
     public void initialPublish(String siteId) throws SiteNotFoundException {
         var siteFeed = siteService.getSite(siteId);
+        String sandboxBranch = siteFeed.getSandboxBranch();
         // Create published repo
-        var created = helper.createPublishedRepository(siteId, siteFeed.getSandboxBranch());
+        var created = helper.createPublishedRepository(siteId, sandboxBranch);
         if (created) {
             // Create staging branch
             if (servicesConfig.isStagingEnvironmentEnabled(siteId)) {
-                createEnvironmentBranch(siteId, siteFeed.getSandboxBranch(),
+                createEnvironmentBranch(siteId, sandboxBranch,
                         servicesConfig.getStagingEnvironment(siteId));
             }
             // Create live branch
-            createEnvironmentBranch(siteId, siteFeed.getSandboxBranch(), servicesConfig.getLiveEnvironment(siteId));
+            createEnvironmentBranch(siteId, sandboxBranch, servicesConfig.getLiveEnvironment(siteId));
             siteService.setPublishedRepoCreated(siteId);
         }
 
         logger.info("Completed the initial publish of the site '{}'", siteId);
     }
 
-    private void createEnvironmentBranch(String siteId, String sandboxBranchName, String environment) {
+    private void createEnvironmentBranch(String siteId, String startPoint, String environment) {
         Repository repository = helper.getRepository(siteId, PUBLISHED);
         try (Git git = new Git(repository)) {
             CheckoutCommand checkoutCommand = git.checkout()
                     .setOrphan(true)
                     .setForceRefUpdate(true)
-                    .setStartPoint(sandboxBranchName)
+                    .setStartPoint(startPoint)
                     .setUpstreamMode(TRACK)
                     .setName(environment);
             retryingRepositoryOperationFacade.call(checkoutCommand);
@@ -1848,7 +1847,6 @@ public class GitContentRepository implements ContentRepository {
                     .setMessage(helper.getCommitMessage(REPO_INITIAL_PUBLISH_COMMIT_MESSAGE))
                     .setAllowEmpty(true);
             retryingRepositoryOperationFacade.call(commitCommand);
-
         } catch (GitAPIException e) {
             logger.error("Failed to create the publishing target branch '{}' in the published repo for " +
                     "site '{}'", environment, siteId, e);

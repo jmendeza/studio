@@ -354,7 +354,7 @@
     <bean id="configurationService"
           class="org.craftercms.studio.impl.v2.service.configuration.ConfigurationServiceImpl">
         <property name="contentService" ref="cstudioContentService" />
-        <property name="contentServiceV2" ref="contentService" />
+        <property name="contentServiceInternal" ref="contentServiceInternal" />
         <property name="studioConfiguration" ref="studioConfiguration" />
         <property name="auditServiceInternal" ref="auditServiceInternal" />
         <property name="siteService" ref="cstudioSiteServiceSimple" />
@@ -464,6 +464,7 @@
         <constructor-arg name="contentRepositoryV2" ref="contentRepository"/>
         <constructor-arg name="studioConfiguration" ref="studioConfiguration" />
         <constructor-arg name="siteFeedMapper" ref="siteFeedMapper" />
+        <constructor-arg name="siteDao" ref="siteDao" />
         <constructor-arg name="retryingDatabaseOperationFacade" ref="studio.retryingDatabaseOperationFacade" />
         <constructor-arg name="siteServiceV1" ref="cstudioSiteServiceSimple" />
         <constructor-arg name="deployer" ref="allDeployers" />
@@ -549,8 +550,11 @@
                          value="#{studioConfiguration.getProperty('studio.configuration.site.contentTypes.configPath')}"/>
         <constructor-arg name="contentTypeDefinitionFilename"
                          value="#{studioConfiguration.getProperty('studio.configuration.site.contentTypes.definitionFileName')}"/>
+        <constructor-arg name="contentTypeConfigFilename"
+                         value="#{studioConfiguration.getProperty('studio.configuration.site.contentTypes.configFileName')}"/>
         <constructor-arg name="templateXPath"
                          value="#{studioConfiguration.getProperty('studio.configuration.contentType.template.xpath')}"/>
+        <constructor-arg name="contentTypesRootPath" value="#{studioConfiguration.getProperty('studio.configuration.site.contentTypes.configBasePath')}" />
         <constructor-arg name="controllerPattern"
                          value="#{studioConfiguration.getProperty('studio.configuration.contentType.controller.pattern')}"/>
         <constructor-arg name="controllerFormat"
@@ -559,7 +563,7 @@
                          value="#{studioConfiguration.getProperty('studio.configuration.contentType.previewImage.xpath')}" />
         <constructor-arg name="defaultPreviewImagePath"
                          value="#{studioConfiguration.getProperty('studio.configuration.contentType.defaultPreviewImagePath')}" />
-
+        <constructor-arg name="gitRepositoryHelper" ref="studio.gitRepositoryHelper" />
         <!-- TODO: Break circular dependency with this bean -->
         <property name="contentService" ref="contentService"/>
      </bean>
@@ -798,7 +802,9 @@
         <property name="batchSizeGitLog"
                          value="#{studioConfiguration.getProperty(T(org.craftercms.studio.api.v2.utils.StudioConfiguration).CLOCK_JOB_TASK_AUDIT_LOG_PROCESSING_BATCH_SIZE_GITLOG)}" />
         <property name="batchSizeAudited"
-                         value="#{studioConfiguration.getProperty(T(org.craftercms.studio.api.v2.utils.StudioConfiguration).CLOCK_JOB_TASK_AUDIT_LOG_PROCESSING_BATCH_SIZE_AUDITED)}" />
+                  value="#{studioConfiguration.getProperty(T(org.craftercms.studio.api.v2.utils.StudioConfiguration).CLOCK_JOB_TASK_AUDIT_LOG_PROCESSING_BATCH_SIZE_AUDITED)}" />
+        <property name="disableAuditLog"
+                  value="#{studioConfiguration.getProperty(T(org.craftercms.studio.api.v2.utils.StudioConfiguration).CLOCK_JOB_TASK_AUDIT_LOG_PROCESSING_DISABLE_AUDIT)}" />
         <property name="contentService" ref="cstudioContentService" />
     </bean>
 

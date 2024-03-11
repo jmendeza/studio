@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2022 Crafter Software Corporation. All Rights Reserved.
+ * Copyright (C) 2007-2024 Crafter Software Corporation. All Rights Reserved.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as published by
@@ -18,6 +18,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload
 import org.apache.commons.fileupload.util.Streams
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.lang3.StringUtils
+import org.craftercms.commons.security.exception.PermissionException
 import org.craftercms.engine.exception.HttpStatusCodeException
 import org.craftercms.studio.api.v1.exception.ServiceLayerException
 import org.craftercms.studio.api.v2.exception.content.ContentExistException
@@ -30,7 +31,6 @@ def oldPath = ""
 def fileName = ""
 def contentType = ""
 def draft = "false"
-def createFolders = "true"
 def edit = "false"
 def unlock = "true"
 def content = null
@@ -39,7 +39,6 @@ def isImage = "false";
 def allowedWidth = "";
 def allowedHeight = "";
 def allowLessSize = "";
-def changeCase = "";
 def systemAsset = null;
 
 def context = ContentServices.createContext(applicationContext, request)
@@ -72,9 +71,6 @@ if(ServletFileUpload.isMultipartContent(request)) {
                 case "allowLessSize":
                     allowLessSize = Streams.asString(stream)
                     break
-                case "changeCase":
-                    changeCase = Streams.asString(stream)
-                    break
             }
         } else {
             fileName = item.getName()
@@ -96,6 +92,9 @@ if(ServletFileUpload.isMultipartContent(request)) {
                 } else {
                     result = writeAssetRes
                 }
+            } catch (PermissionException e) {
+                response.setStatus(403)
+                result.message = e.message
             } catch (ServiceLayerException e) {
                 response.setStatus(500)
                 result.setMessage = e.getMessage()
@@ -111,7 +110,6 @@ if(ServletFileUpload.isMultipartContent(request)) {
     oldPath = request.getParameter("oldContentPath")
     fileName = (request.getParameter("fileName")) ? request.getParameter("fileName") : request.getParameter("filename")
     contentType = request.getParameter("contentType")
-    createFolders = request.getParameter("createFolders")
     edit = request.getParameter("edit")
     draft = request.getParameter("draft")
     unlock = request.getParameter("unlock")

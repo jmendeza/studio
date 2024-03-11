@@ -54,6 +54,8 @@ import org.craftercms.studio.impl.v2.utils.DateUtils;
 import org.craftercms.studio.model.AuthenticatedUser;
 import org.craftercms.studio.model.history.ItemVersion;
 import org.craftercms.studio.model.rest.content.DetailedItem;
+import org.craftercms.studio.model.rest.content.GetChildrenBulkRequest.PathParams;
+import org.craftercms.studio.model.rest.content.GetChildrenByPathsBulkResult;
 import org.craftercms.studio.model.rest.content.GetChildrenResult;
 import org.craftercms.studio.model.rest.content.SandboxItem;
 import org.craftercms.studio.permissions.CompositePermission;
@@ -67,15 +69,13 @@ import org.springframework.core.io.Resource;
 import org.springframework.lang.NonNull;
 
 import javax.validation.Valid;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 import static java.lang.String.format;
 import static org.craftercms.studio.api.v2.dal.AuditLogConstants.*;
 import static org.craftercms.studio.permissions.CompositePermissionResolverImpl.PATH_LIST_RESOURCE_ID;
 import static org.craftercms.studio.permissions.PermissionResolverImpl.PATH_RESOURCE_ID;
+import static org.craftercms.studio.permissions.PermissionResolverImpl.SITE_ID_RESOURCE_ID;
 import static org.craftercms.studio.permissions.StudioPermissionsConstants.*;
 
 public class ContentServiceImpl implements ContentService, ApplicationContextAware {
@@ -94,6 +94,20 @@ public class ContentServiceImpl implements ContentService, ApplicationContextAwa
     private GeneralLockService generalLockService;
     private ApplicationContext applicationContext;
     private org.craftercms.studio.api.v1.service.content.ContentService contentServiceV1;
+
+    @Override
+    @HasPermission(type = DefaultPermission.class, action = PERMISSION_CONTENT_READ)
+    public boolean contentExists(@ProtectedResourceId(SITE_ID_RESOURCE_ID) String siteId,
+                                 @ProtectedResourceId(PATH_RESOURCE_ID) String path) throws SiteNotFoundException {
+        siteService.checkSiteExists(siteId);
+        return contentServiceInternal.contentExists(siteId, path);
+    }
+
+    @Override
+    public boolean shallowContentExists(String site, String path) throws SiteNotFoundException {
+        siteService.checkSiteExists(site);
+        return contentServiceInternal.shallowContentExists(site, path);
+    }
 
     @Override
     // TODO: JM: Should we have a "is member of site" validation here?
@@ -200,6 +214,17 @@ public class ContentServiceImpl implements ContentService, ApplicationContextAwa
         siteService.checkSiteExists(siteId);
         return contentServiceInternal.getChildrenByPath(siteId, path, locale, keyword, systemTypes, excludes,
                                                         sortStrategy, order, offset, limit);
+    }
+
+    @Override
+    @RequireSiteReady
+    @HasPermission(type = CompositePermission.class, action = PERMISSION_GET_CHILDREN)
+    public GetChildrenByPathsBulkResult getChildrenByPaths(@SiteId String siteId,
+                                                           @ProtectedResourceId(PATH_LIST_RESOURCE_ID) List<String> paths,
+                                                           Map<String, PathParams> pathParams)
+            throws ServiceLayerException, UserNotFoundException {
+        siteService.checkSiteExists(siteId);
+        return contentServiceInternal.getChildrenByPaths(siteId, paths, pathParams);
     }
 
     @Override
